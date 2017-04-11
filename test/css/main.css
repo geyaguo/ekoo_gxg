@@ -1,0 +1,87 @@
+@charset "UTF-8";
+/*!
+   * @名称：base.css
+   * @功能：1、重设浏览器默认样式
+   *       2、设置通用原子类
+   */
+/* 防止用户自定义背景颜色对网页的影响，添加让用户可以自定义字体 */
+body,
+div,
+dl,
+dt,
+dd,
+ul,
+ol,
+li,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+pre,
+code,
+form,
+fieldset,
+legend,
+input,
+textarea,
+p,
+blockquote,
+th,
+td,
+hr,
+button,
+article,
+aside,
+details,
+figcaption,
+figure,
+footer,
+header,
+hgroup,
+menu,
+nav,
+section {
+  margin: 0;
+  padding: 0; }
+
+/*multi_pages_lgm*/
+.index-page .mui-content {
+  margin-bottom: 50px; }
+  .index-page .mui-content .mui-slider {
+    height: 195px; }
+    .index-page .mui-content .mui-slider img {
+      height: 195px; }
+  .index-page .mui-content .mui-grid-view {
+    height: 170px; }
+    .index-page .mui-content .mui-grid-view .mui-table-view-cell {
+      padding: 0; }
+
+.hx-emoji-wrapper li {
+  float: left;
+  padding: 5px 12px; }
+
+.camera-wrapper-div {
+  display: inline-block;
+  position: relative;
+  background: url("../img/dialog-add.png") no-repeat;
+  width: 1.5625rem;
+  height: 1.5625rem;
+  background-size: 1.5625rem 1.5625rem;
+  background: url("../img/dialog-add.png") no-repeat;
+  margin-top: 0.34375rem;
+  margin-right: 0.75rem; }
+  .camera-wrapper-div #cameraFileInput {
+    position: absolute;
+    width: 1.5625rem;
+    height: 1.5625rem;
+    opacity: 0; }
+
+.ui-datepicker {
+  width: 100%; }
+
+#ui-datepicker-div {
+  display: none; }
+
+/*ziyemian_gxg*/

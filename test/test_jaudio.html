@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title>测试jaudio插件在ios上面的问题</title>
+	</head>
+	<body>
+		
+		<div class="jAudio--player">
+			<audio></audio>
+	
+			<div class='jAudio--controls'>
+				<button class='btn' data-action='play' id='btn-play' style="width:100px;height:50px;"><span>sdfsdf</span></button>
+			</div>
+			
+		</div>
+
+		<script src="js/jquery.min.js"></script>
+		<script src="js/jaudio.js"></script>
+		<script>
+			$(function(){
+				var t = {
+			        playlist: [{
+			            file: "http://olcwbyp8n.bkt.clouddn.com/FqhnXSIEbPeKzwjlbOtReGLzjIjv.mp3",
+			            thumb: "01.jpg",
+			            trackName: "Dusk",
+			            trackArtist: "Tobu &amp; Syndec",
+			            trackAlbum: "Single",
+			        }],
+			        //				autoPlay: true
+			    }
+			    $(".jAudio--player").jAudio(t);
+			});
+		</script>
+	</body>
+</html>

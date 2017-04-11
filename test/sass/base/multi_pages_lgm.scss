@@ -1,0 +1,51 @@
+@import "pixelToRem";
+.index-page {
+    .mui-content {
+        margin-bottom: 50px;
+        .mui-slider {
+            height: 195px;
+            img {
+                height: 195px;
+            }
+        }
+        .mui-grid-view {
+            height: 170px;
+            .mui-table-view-cell {
+                padding: 0;
+            }
+        }
+    }
+}
+
+.hx-emoji-wrapper {
+    li {
+        float: left;
+        padding: 5px 12px;
+    }
+}
+.camera-wrapper-div {
+    display: inline-block;
+    position: relative;
+    background: url("../img/dialog-add.png") no-repeat;
+    width: pixToRem(50px);
+    height: pixToRem(50px); 
+    background-size: pixToRem(50px) pixToRem(50px);
+    background: url('../img/dialog-add.png') no-repeat;
+    margin-top: pixToRem(11px);
+    margin-right: pixToRem(24px);
+    #cameraFileInput {
+        position: absolute;
+        width: pixToRem(50px);
+        height: pixToRem(50px);
+        opacity: 0;
+    }
+}
+.ui-datepicker {
+    width: 100%;
+}
+#ui-datepicker-div {
+    display: none;
+}
+//.highlight .ui-state-default {
+//  background: #acefac;
+//}

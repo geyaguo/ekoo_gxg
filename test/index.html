@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title>测试页面路由</title>
+	</head>
+	<body>
+		<header>测试页面路由</header>
+		<div id="app">
+			<!--<a v-link="{path:'/home'}">首页</a>
+			<a v-link="{path:'/introduce'}">介绍</a>
+			<a v-link="{path:'/about'}">关于</a>-->
+			<router-link to="/home">首页</router-link>
+    		<router-link to="/introduce">介绍</router-link>
+    		<router-link to="/about">关于</router-link>
+    		
+			<router-view></router-view>
+		</div>
+		
+		
+		<script src="js/jquery.min.js"></script>
+		<script src="js/vue.min.js"></script>
+		<script src="js/vue-router.js"></script>
+		
+		<script>
+			$(function(){
+				import homePage from "./1.vue";
+				import introducePage from "./2.vue";
+				import aboutPage from "./3.vue";
+				
+//				var home = require('./1.vue');
+//				var introduce = require('./2.vue');
+//				var about = require('./3.vue');
+				
+				
+				var App = {};
+				var router = new VueRouter();
+				router.map({
+					"/":{
+						component:homePage
+					},
+					"/home":{
+						component:homePage
+					},
+					"/introduce":{
+						component:introducePage
+					},
+					"/about":{
+						component:aboutPage
+					},
+				});
+				router.start(App,"#app")
+			})
+		</script>
+	</body>
+</html>
