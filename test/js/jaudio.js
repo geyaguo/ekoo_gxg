@@ -14,422 +14,397 @@
 // # ----- License Info
 // - Released under the GPL v3 license.
 
-(function($){
+(function($) {
 
-  var pluginName = "jAudio",
-      defaults = {
-        playlist: [],
+	var pluginName = "jAudio",
+		defaults = {
+			playlist: [],
 
-        defaultAlbum: undefined,
-        defaultArtist: undefined,
-        defaultTrack: 0,
+			defaultAlbum: undefined,
+			defaultArtist: undefined,
+			defaultTrack: 0,
+		
+			autoPlay: false,
 
-        autoPlay: false,
+			debug: false
+		};
 
-        debug: false
-      };
+	function Plugin($context, options) {
+		this.settings = $.extend(true, defaults, options);
 
-  function Plugin( $context, options )
-  {
-    this.settings         = $.extend( true, defaults, options );
+		this.$context = $context;
 
-    this.$context         = $context;
+		this.domAudio = this.$context.find("audio")[0];
+		this.$domPlaylist = this.$context.find(".jAudio--playlist");
+		this.$domControls = this.$context.find(".jAudio--controls");
+		this.$domVolumeBar = this.$context.find(".jAudio--volume");
+		this.$domDetails = this.$context.find(".jAudio--details");
+		this.$domStatusBar = this.$context.find(".jAudio--status-bar");
+		this.$domProgressBar = this.$context.find(".jAudio--progress-bar-wrapper");
+		this.$domTime = this.$context.find(".jAudio--time");
+		this.$domElapsedTime = this.$context.find(".jAudio--time-elapsed");
+		this.$domTotalTime = this.$context.find(".jAudio--time-total");
+		this.$domThumb = this.$context.find(".jAudio--thumb");
 
-    this.domAudio         = this.$context.find("audio")[0];
-    this.$domPlaylist     = this.$context.find(".jAudio--playlist");
-    this.$domControls     = this.$context.find(".jAudio--controls");
-    this.$domVolumeBar    = this.$context.find(".jAudio--volume");
-    this.$domDetails      = this.$context.find(".jAudio--details");
-    this.$domStatusBar    = this.$context.find(".jAudio--status-bar");
-    this.$domProgressBar  = this.$context.find(".jAudio--progress-bar-wrapper");
-    this.$domTime         = this.$context.find(".jAudio--time");
-    this.$domElapsedTime  = this.$context.find(".jAudio--time-elapsed");
-    this.$domTotalTime    = this.$context.find(".jAudio--time-total");
-    this.$domThumb        = this.$context.find(".jAudio--thumb");
+		this.currentState = "pause";
+		this.currentTrack = this.settings.defaultTrack;
+		this.currentElapsedTime = undefined;
 
-    this.currentState       = "pause";
-    this.currentTrack       = this.settings.defaultTrack;
-    this.currentElapsedTime = undefined;
+		this.timer = undefined;
 
-    this.timer              = undefined;
+		this.init();
+		
+	}
 
-    this.init();
-  }
+	Plugin.prototype = {
 
-  Plugin.prototype = {
+		init: function() {
+			var self = this;
 
-    init: function()
-    {
-      var self = this;
+			self.renderPlaylist();
+			self.preLoadTrack();
+			self.highlightTrack();
+			self.updateTotalTime();
+			self.events();
+			self.debug();
+			self.domAudio.volume = 0.05;
+		},
 
-      self.renderPlaylist();
-      self.preLoadTrack();
-      self.highlightTrack();
-      self.updateTotalTime();
-      self.events();
-      self.debug();
-      self.domAudio.volume = 0.05
-    },
+		play: function() {
+			var self = this,
+				playButton = self.$domControls.find("#btn-play");
 
-    play: function()
-    {
-      var self        = this,
-          playButton  = self.$domControls.find("#btn-play");
+			self.domAudio.play();
 
-      self.domAudio.play();
+			if(self.currentState === "play") return;
 
-      if(self.currentState === "play") return;
+			clearInterval(self.timer);
+			self.timer = setInterval(self.run.bind(self), 50);
 
-      clearInterval(self.timer);
-      self.timer = setInterval( self.run.bind(self), 50 );
+			self.currentState = "play";
 
-      self.currentState = "play";
+			// change id
+			playButton.data("action", "pause");
+			playButton.attr("id", "btn-pause");
 
-      // change id
-      playButton.data("action", "pause");
-      playButton.attr("id", "btn-pause");
+			// activate
+			playButton.toggleClass('active');
+		},
 
-      // activate
-      playButton.toggleClass('active');
-    },
+		pause: function() {
+			var self = this,
+				playButton = self.$domControls.find("#btn-pause");
 
-    pause: function()
-    {
-      var self        = this,
-          playButton  = self.$domControls.find("#btn-pause");
+			self.domAudio.pause();
+			clearInterval(self.timer);
 
-      self.domAudio.pause();
-      clearInterval(self.timer);
+			self.currentState = "pause";
 
-      self.currentState = "pause";
+			// change id
+			playButton.data("action", "play");
+			playButton.attr("id", "btn-play");
 
-      // change id
-      playButton.data("action", "play");
-      playButton.attr("id", "btn-play");
+			// activate
+			playButton.toggleClass('active');
 
-      // activate
-      playButton.toggleClass('active');
+		},
 
-    },
+		stop: function() {
+			var self = this;
 
-    stop: function()
-    {
-      var self = this;
+			self.domAudio.pause();
+			self.domAudio.currentTime = 0;
 
-      self.domAudio.pause();
-      self.domAudio.currentTime = 0;
+			self.animateProgressBarPosition();
+			clearInterval(self.timer);
+			self.updateElapsedTime();
 
-      self.animateProgressBarPosition();
-      clearInterval(self.timer);
-      self.updateElapsedTime();
+			self.currentState = "stop";
+		},
 
-      self.currentState = "stop";
-    },
+		prev: function() {
+			var self = this,
+				track;
 
-    prev: function()
-    {
-      var self  = this,
-          track;
+			(self.currentTrack === 0) ?
+			track = self.settings.playlist.length - 1: track = self.currentTrack - 1;
 
-      (self.currentTrack === 0)
-        ? track = self.settings.playlist.length - 1
-        : track = self.currentTrack - 1;
+			self.changeTrack(track);
+		},
+		next: function() {
+			var self = this,
+				track;
 
-      self.changeTrack(track);
-    },
-    next: function()
-    {
-      var self = this,
-          track;
+			(self.currentTrack === self.settings.playlist.length - 1) ?
+			track = 0: track = self.currentTrack + 1;
 
-      (self.currentTrack === self.settings.playlist.length - 1)
-        ? track = 0
-        : track = self.currentTrack + 1;
+			self.changeTrack(track);
+		},
 
-      self.changeTrack(track);
-    },
+		preLoadTrack: function() {
+			var self = this,
+				defTrack = self.settings.defaultTrack;
 
+			self.changeTrack(defTrack);
 
-    preLoadTrack: function()
-    {
-      var self      = this,
-          defTrack  = self.settings.defaultTrack;
+			self.stop();
+		},
 
-      self.changeTrack( defTrack );
+		changeTrack: function(index) {
+			var self = this;
 
-      self.stop();
-    },
+			self.currentTrack = index;
+			self.domAudio.src = self.settings.playlist[index].file;
 
-    changeTrack: function(index)
-    {
-      var self = this;
+			if(self.currentState === "play" || self.settings.autoPlay) self.play();
 
-      self.currentTrack  = index;
-      self.domAudio.src  = self.settings.playlist[index].file;
+			self.highlightTrack();
 
-      if(self.currentState === "play" || self.settings.autoPlay) self.play();
+			self.updateThumb();
 
-      self.highlightTrack();
+			self.renderDetails();
+		},
 
-      self.updateThumb();
+		events: function() {
+			var self = this;
 
-      self.renderDetails();
-    },
+			// - controls events
+			self.$domControls.on("click", "button", function() {
+				var action = $(this).data("action");
 
-    events: function()
-    {
-      var self = this;
+				switch(action) {
+					case "prev":
+						self.prev.call(self);
+						break;
+					case "next":
+						self.next.call(self);
+						break;
+					case "pause":
+						self.pause.call(self);
+						break;
+					case "stop":
+						self.stop.call(self);
+						break;
+					case "play":
+						self.play.call(self);
+						break;
+				};
+
+			});
+
+			// - playlist events
+			self.$domPlaylist.on("click", ".jAudio--playlist-item", function(e) {
+				var item = $(this),
+					track = item.data("track"),
+					index = item.index();
 
-      // - controls events
-      self.$domControls.on("click", "button", function()
-      {
-        var action = $(this).data("action");
+				if(self.currentTrack === index) return;
 
-        switch( action )
-        {
-          case "prev": self.prev.call(self); break;
-          case "next": self.next.call(self); break;
-          case "pause": self.pause.call(self); break;
-          case "stop": self.stop.call(self); break;
-          case "play": self.play.call(self); break;
-        };
+				self.changeTrack(index);
+			});
 
-      });
+			// - volume's bar events
+			// to do
+
+			// - progress bar events
+			self.$domProgressBar.on("click", function(e) {
+				self.updateProgressBar(e);
+				self.updateElapsedTime();
+			});
 
-      // - playlist events
-      self.$domPlaylist.on("click", ".jAudio--playlist-item", function(e)
-      {
-        var item = $(this),
-            track = item.data("track"),
-            index = item.index();
+			$(self.domAudio).on("loadedmetadata", function() {
+				self.animateProgressBarPosition.call(self);
+				self.updateElapsedTime.call(self);
+				self.updateTotalTime.call(self);
+			});
+		},
 
-        if(self.currentTrack === index) return;
+		getAudioSeconds: function(string) {
+			var self = this,
+				string = string % 60;
+			string = self.addZero(Math.floor(string), 2);
 
-        self.changeTrack(index);
-      });
+			(string < 60) ? string = string: string = "00";
 
-      // - volume's bar events
-      // to do
+			return string;
+		},
 
-      // - progress bar events
-      self.$domProgressBar.on("click", function(e)
-      {
-        self.updateProgressBar(e);
-        self.updateElapsedTime();
-      });
+		getAudioMinutes: function(string) {
+			var self = this,
+				string = string / 60;
+			string = self.addZero(Math.floor(string), 2);
 
-      $(self.domAudio).on("loadedmetadata", function()
-      {
-        self.animateProgressBarPosition.call(self);
-        self.updateElapsedTime.call(self);
-        self.updateTotalTime.call(self);
-      });
-    },
+			(string < 60) ? string = string: string = "00";
 
+			return string;
+		},
 
-    getAudioSeconds: function(string)
-    {
-      var self    = this,
-          string  = string % 60;
-          string  = self.addZero( Math.floor(string), 2 );
+		addZero: function(word, howManyZero) {
+			var word = String(word);
 
-      (string < 60) ? string = string : string = "00";
+			while(word.length < howManyZero) word = "0" + word;
 
-      return string;
-    },
+			return word;
+		},
 
-    getAudioMinutes: function(string)
-    {
-      var self    = this,
-          string  = string / 60;
-          string  = self.addZero( Math.floor(string), 2 );
+		removeZero: function(word, howManyZero) {
+			var word = String(word),
+				i = 0;
 
-      (string < 60) ? string = string : string = "00";
+			while(i < howManyZero) {
+				if(word[0] === "0") {
+					word = word.substr(1, word.length);
+				} else {
+					break;
+				}
 
-      return string;
-    },
+				i++;
+			}
 
-    addZero: function(word, howManyZero)
-    {
-      var word = String(word);
+			return word;
+		},
 
-      while(word.length < howManyZero) word = "0" + word;
+		highlightTrack: function() {
+			var self = this,
+				tracks = self.$domPlaylist.children(),
+				className = "active";
 
-      return word;
-    },
+			tracks.removeClass(className);
+			tracks.eq(self.currentTrack).addClass(className);
+		},
 
-    removeZero: function(word, howManyZero)
-    {
-      var word  = String(word),
-          i     = 0;
+		renderDetails: function() {
+			var self = this,
+				track = self.settings.playlist[self.currentTrack],
+				file = track.file,
+				thumb = track.thumb,
+				trackName = track.trackName,
+				trackArtist = track.trackArtist,
+				trackAlbum = track.trackAlbum,
+				template = "";
 
-      while(i < howManyZero)
-      {
-        if(word[0] === "0") { word = word.substr(1, word.length); } else { break; }
+			template += "<p>";
+			template += "<span>" + trackName + "</span>";
+			// template += " - ";
+			template += "<span>" + trackArtist + "</span>";
+			// template += "<span>" + trackAlbum + "</span>";
+			template += "</p>";
 
-        i++;
-      }
+			$(".jAudio--details").html(template);
 
-      return word;
-    },
+		},
 
+		renderPlaylist: function() {
+			var self = this,
+				template = "";
 
-    highlightTrack: function()
-    {
-      var self      = this,
-          tracks    = self.$domPlaylist.children(),
-          className = "active";
+			$.each(self.settings.playlist, function(i, a) {
+				var file = a["file"],
+					thumb = a["thumb"],
+					trackName = a["trackName"],
+					trackArtist = a["trackArtist"],
+					trackAlbum = a["trackAlbum"];
+				trackDuration = "00:00";
 
-      tracks.removeClass(className);
-      tracks.eq(self.currentTrack).addClass(className);
-    },
+				template += "<div class='jAudio--playlist-item' data-track='" + file + "'>";
 
-    renderDetails: function()
-    {
-      var self          = this,
-          track         = self.settings.playlist[self.currentTrack],
-          file          = track.file,
-          thumb         = track.thumb,
-          trackName     = track.trackName,
-          trackArtist   = track.trackArtist,
-          trackAlbum    = track.trackAlbum,
-          template      =  "";
+				template += "<div class='jAudio--playlist-thumb'><img src='" + thumb + "'></div>";
 
-          template += "<p>";
-          template += "<span>" + trackName + "</span>";
-          // template += " - ";
-          template += "<span>" + trackArtist + "</span>";
-          // template += "<span>" + trackAlbum + "</span>";
-          template += "</p>";
+				template += "<div class='jAudio--playlist-meta-text'>";
+				template += "<h4>" + trackName + "</h4>";
+				template += "<p>" + trackArtist + "</p>";
+				template += "</div>";
+				// template += "<div class='jAudio--playlist-track-duration'>" + trackDuration + "</div>";
+				template += "</div>";
 
+				// });
 
-      $(".jAudio--details").html(template);
+			});
 
-    },
+			self.$domPlaylist.html(template);
 
-    renderPlaylist: function()
-    {
-      var self = this,
-          template = "";
+		},
 
+		run: function() {
+			var self = this;
 
-      $.each(self.settings.playlist, function(i, a)
-      {
-        var file          = a["file"],
-            thumb         = a["thumb"],
-            trackName     = a["trackName"],
-            trackArtist   = a["trackArtist"],
-            trackAlbum    = a["trackAlbum"];
-            trackDuration = "00:00";
+			self.animateProgressBarPosition();
+			self.updateElapsedTime();
 
-        template += "<div class='jAudio--playlist-item' data-track='" + file + "'>";
+			if(self.domAudio.ended) self.next();
+		},
 
-        template += "<div class='jAudio--playlist-thumb'><img src='"+ thumb +"'></div>";
+		animateProgressBarPosition: function() {
+			var self = this,
+				percentage = (self.domAudio.currentTime * 100 / self.domAudio.duration) + "%",
+				styles = {
+					"width": percentage
+				};
 
-        template += "<div class='jAudio--playlist-meta-text'>";
-        template += "<h4>" + trackName + "</h4>";
-        template += "<p>" + trackArtist + "</p>";
-        template += "</div>";
-        // template += "<div class='jAudio--playlist-track-duration'>" + trackDuration + "</div>";
-        template += "</div>";
+			self.$domProgressBar.children().eq(0).css(styles);
+		},
 
-      // });
+		updateProgressBar: function(e) {
+			var self = this,
+				mouseX,
+				percentage,
+				newTime;
 
-      });
+			if(e.offsetX) mouseX = e.offsetX;
+			if(mouseX === undefined && e.layerX) mouseX = e.layerX;
 
-      self.$domPlaylist.html(template);
+			percentage = mouseX / self.$domProgressBar.width();
+			newTime = self.domAudio.duration * percentage;
 
-    },
+			self.domAudio.currentTime = newTime;
+			self.animateProgressBarPosition();
+		},
 
-    run: function()
-    {
-      var self = this;
+		updateElapsedTime: function() {
+			var self = this,
+				time = self.domAudio.currentTime,
+				minutes = self.getAudioMinutes(time),
+				seconds = self.getAudioSeconds(time),
 
-      self.animateProgressBarPosition();
-      self.updateElapsedTime();
+				audioTime = minutes + ":" + seconds;
 
-      if(self.domAudio.ended) self.next();
-    },
+			self.$domElapsedTime.text(audioTime);
+		},
 
-    animateProgressBarPosition: function()
-    {
-      var self        = this,
-          percentage  = (self.domAudio.currentTime * 100 / self.domAudio.duration) + "%",
-          styles      = { "width": percentage };
+		updateTotalTime: function() {
+			var self = this,
+				time = self.domAudio.duration,
+				minutes = self.getAudioMinutes(time),
+				seconds = self.getAudioSeconds(time),
+				audioTime = minutes + ":" + seconds;
 
-      self.$domProgressBar.children().eq(0).css(styles);
-    },
+			self.$domTotalTime.text(audioTime);
+		},
 
-    updateProgressBar: function(e)
-    {
-      var self = this,
-          mouseX,
-          percentage,
-          newTime;
+		updateThumb: function() {
+			var self = this,
+				thumb = self.settings.playlist[self.currentTrack].thumb,
+				styles = {
+					"background-image": "url(" + thumb + ")"
+				};
 
-      if(e.offsetX) mouseX = e.offsetX;
-      if(mouseX === undefined && e.layerX) mouseX = e.layerX;
+			self.$domThumb.css(styles);
+		},
 
-      percentage  = mouseX / self.$domProgressBar.width();
-      newTime     = self.domAudio.duration * percentage;
+		debug: function() {
+			var self = this;
 
-      self.domAudio.currentTime = newTime;
-      self.animateProgressBarPosition();
-    },
+			if(self.settings.debug) console.log(self.settings);
+		}
 
-    updateElapsedTime: function()
-    {
-      var self      = this,
-          time      = self.domAudio.currentTime,
-          minutes   = self.getAudioMinutes(time),
-          seconds   = self.getAudioSeconds(time),
+	}
 
-          audioTime = minutes + ":" + seconds;
+	$.fn[pluginName] = function(options) {
+		var instantiate = function() {
+			return new Plugin($(this), options);
+		}
 
-      self.$domElapsedTime.text( audioTime );
-    },
-
-    updateTotalTime: function()
-    {
-      var self      = this,
-          time      = self.domAudio.duration,
-          minutes   = self.getAudioMinutes(time),
-          seconds   = self.getAudioSeconds(time),
-          audioTime = minutes + ":" + seconds;
-
-      self.$domTotalTime.text( audioTime );
-    },
-
-
-    updateThumb: function()
-    {
-      var self = this,
-          thumb = self.settings.playlist[self.currentTrack].thumb,
-          styles = {
-            "background-image": "url(" + thumb + ")"
-          };
-
-      self.$domThumb.css(styles);
-    },
-
-    debug: function()
-    {
-      var self = this;
-
-      if(self.settings.debug) console.log(self.settings);
-    }
-
-  }
-
-  $.fn[pluginName] = function( options )
-  {
-    var instantiate = function()
-    {
-      return new Plugin( $(this), options );
-    }
-
-    $(this).each(instantiate);
-  }
+		$(this).each(instantiate);
+	}
 
 })(jQuery)
-
